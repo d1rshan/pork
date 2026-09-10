@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mergeEntries, parseLsof } from "../src/ports.ts";
 import { formatUptime } from "../src/format.ts";
 import { parseArgs } from "../src/index.ts";
+import { clip } from "../src/tui.ts";
 
 test("parseLsof handles ipv4, ipv6, addresses, LISTEN and header", () => {
   const fixture = [
@@ -81,4 +82,14 @@ test("parseArgs", () => {
   assert.deepEqual(parseArgs(["--version"]), { command: "version" });
   assert.deepEqual(parseArgs(["kill", "not-a-port"]), { command: "usage" });
   assert.deepEqual(parseArgs(["bogus"]), { command: "usage" });
+});
+
+test("clip respects visible width and preserves ANSI", () => {
+  assert.equal(clip("hello", 10), "hello");
+  assert.equal(clip("hello world", 5), "hell…\x1b[0m");
+  const stripped = clip("\x1b[35mhello world\x1b[0m", 5).replace(
+    /\x1b\[[0-9;]*m/g,
+    "",
+  );
+  assert.equal(stripped, "hell…");
 });

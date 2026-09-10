@@ -6,9 +6,10 @@ function wrap(code: string, s: string): string {
   return useColor ? `${code}${s}\x1b[0m` : s;
 }
 
-export const green = (s: string): string => wrap("\x1b[38;5;46m", s);
-export const amber = (s: string): string => wrap("\x1b[38;5;214m", s);
+export const accent = (s: string): string => wrap("\x1b[35m", s);
+export const warn = (s: string): string => wrap("\x1b[33m", s);
 export const dim = (s: string): string => wrap("\x1b[2m", s);
+export const bold = (s: string): string => wrap("\x1b[1m", s);
 
 export function formatUptime(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "-";
@@ -42,12 +43,12 @@ const pad = (s: string, w: number): string => s + " ".repeat(Math.max(0, w - s.l
 
 export function renderTable(entries: PortEntry[]): string {
   const { headers, rows, widths } = buildTable(entries);
-  const head = green("pork ▸") + " " + dim(`${entries.length} ports`);
+  const head = bold(accent("pork")) + " " + dim(`${entries.length} ports`);
   const columnHeader = dim(
     headers.map((h, i) => pad(h, widths[i])).join("   ").trimEnd(),
   );
   const body = rows.map((cols) => {
-    const port = green(pad(cols[0], widths[0]));
+    const port = accent(pad(cols[0], widths[0]));
     const rest = cols
       .slice(1)
       .map((c, i) => pad(c, widths[i + 1]))
