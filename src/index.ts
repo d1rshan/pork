@@ -3,6 +3,7 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { discover, killPorts, type PortEntry } from "./ports.ts";
 import { renderJson, renderTable } from "./format.ts";
+import { runTui } from "./tui.ts";
 
 const VERSION = "0.1.0";
 
@@ -86,7 +87,11 @@ function main(): void {
       break;
 
     case "tui":
-      console.log(usage());
+      if (!process.stdout.isTTY) {
+        console.error("pork: interactive mode needs a terminal");
+        process.exit(1);
+      }
+      runTui();
       return;
 
     case "list": {
