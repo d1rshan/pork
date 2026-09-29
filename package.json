@@ -1,6 +1,6 @@
 {
   "name": "@d1rshan/pork",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Find and kill dev-server ports",
   "type": "module",
   "bin": {
