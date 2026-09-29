@@ -4,18 +4,23 @@
   "description": "Find and kill dev-server ports",
   "type": "module",
   "bin": {
-    "pork": "src/index.ts"
+    "pork": "dist/index.js"
   },
   "files": [
-    "src"
+    "dist"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "start": "node src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build && npm run check && npm test",
     "check": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node --test",
+    "release:patch": "npm version patch && git push --follow-tags && npm publish && gh release create \"$(git describe --tags --abbrev=0)\" --generate-notes",
+    "release:minor": "npm version minor && git push --follow-tags && npm publish && gh release create \"$(git describe --tags --abbrev=0)\" --generate-notes",
+    "release:major": "npm version major && git push --follow-tags && npm publish && gh release create \"$(git describe --tags --abbrev=0)\" --generate-notes"
   },
   "engines": {
     "node": ">=24"
