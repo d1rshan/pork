@@ -1,11 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeEntries, parseLsof } from "../src/ports.ts";
-import { formatUptime } from "../src/format.ts";
-import { parseArgs } from "../src/index.ts";
-import { clip } from "../src/tui.ts";
+import { mergeEntries } from "../src/ports.ts";
+import { parseLsof, parseEtime } from "../src/platforms/unix.ts";
+import { parsePowershellRows } from "../src/platforms/windows.ts";
+import { formatUptime } from "../src/table.ts";
+import { parseArgs } from "../src/args.ts";
+import { clip } from "../src/table.ts";
 
-test("parseLsof handles ipv4, ipv6, addresses, LISTEN and header", () => {
+test("importing index.ts has no side effects", () => {
+  assert.doesNotThrow(() => import("../src/index.ts"));
   const fixture = [
     "COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME",
     "node    12345 darsh   23u  IPv4  99999      0t0  TCP *:3000 (LISTEN)",
@@ -48,6 +51,44 @@ test("mergeEntries collapses same port:pid and sorts port ascending", () => {
     ],
   );
   assert.equal(merged[2].family, "IPv6");
+});
+
+test("parseEtime handles mm:ss, hh:mm:ss and dd-hh:mm:ss", () => {
+  assert.equal(parseEtime("01:23"), 83);
+  assert.equal(parseEtime("02:03:04"), 2 * 3600 + 3 * 60 + 4);
+  assert.equal(parseEtime("1-02:03:04"), 86400 + 2 * 3600 + 3 * 60 + 4);
+  assert.equal(parseEtime("0:00"), 0);
+  assert.equal(parseEtime("junk"), null);
+});
+
+test("parsePowershellRows parses pipe-free field data", () => {
+  const row = parsePowershellRows(
+    ["1234\u001f0.0.0.0\u001f3000\u001fnode\u001fnode server.js\u001f42"].join("\n"),
+  );
+  assert.equal(row.length, 1);
+  assert.deepEqual(row[0], {
+    port: 3000,
+    pid: 1234,
+    process: "node",
+    family: "IPv4",
+    address: "0.0.0.0",
+    uptimeSeconds: 42,
+    commandLine: "node server.js",
+  });
+});
+
+test("parsePowershellRows keeps '|' and spaces inside CommandLine intact", () => {
+  const rows = parsePowershellRows(
+    [
+      "7\u001f::\u001f8080\u001fpwsh\u001fpwsh -Command a|b |  c  d\u001f0",
+      "9\u001f0.0.0.0\u001f5173\u001fbun.exe\u001f\u001f",
+    ].join("\n"),
+  );
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].commandLine, "pwsh -Command a|b |  c  d");
+  assert.equal(rows[0].family, "IPv6");
+  assert.equal(rows[1].uptimeSeconds, null);
+  assert.equal(rows[1].commandLine, "bun.exe");
 });
 
 test("formatUptime", () => {

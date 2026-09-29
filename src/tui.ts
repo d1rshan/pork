@@ -1,33 +1,9 @@
 import readline from "node:readline";
 import { discover, killPorts, type PortEntry } from "./ports.ts";
-import { accent, bold, dim, formatUptime, warn } from "./format.ts";
+import { accent, bold, dim, warn } from "./format.ts";
+import { buildTable, clip, joinCells, pad, visibleLen } from "./table.ts";
 
 const out = (s: string): void => void process.stdout.write(s);
-
-const ANSI = /\x1b\[[0-9;]*m/g;
-const visibleLen = (s: string): number => s.replace(ANSI, "").length;
-const pad = (s: string, w: number): string => s + " ".repeat(Math.max(0, w - s.length));
-const center = (s: string, w: number): string => {
-  const left = Math.max(0, Math.floor((w - visibleLen(s)) / 2));
-  return " ".repeat(left) + s;
-};
-
-export function clip(s: string, w: number): string {
-  if (visibleLen(s) <= w) return s;
-  let out = "";
-  let visible = 0;
-  for (let i = 0; i < s.length && visible < w - 1; i++) {
-    const code = s.slice(i).match(/^\x1b\[[0-9;]*m/);
-    if (code) {
-      out += code[0];
-      i += code[0].length - 1;
-      continue;
-    }
-    out += s[i];
-    visible++;
-  }
-  return out + "…\x1b[0m";
-}
 
 function box(content: string[], inner: number): string[] {
   const body = content.map((line) => clip(line, inner));
@@ -39,6 +15,14 @@ function box(content: string[], inner: number): string[] {
   ];
 }
 
+const center = (s: string, w: number): string => {
+  const left = Math.max(0, Math.floor((w - visibleLen(s)) / 2));
+  return " ".repeat(left) + s;
+};
+
+// ---------------------------------------------------------------------------
+// state
+// ---------------------------------------------------------------------------
 
 const REFRESH_MS = 2000;
 
@@ -49,19 +33,14 @@ const state: {
   timer: NodeJS.Timeout | null;
 } = { entries: [], selected: 0, status: null, timer: null };
 
+// ---------------------------------------------------------------------------
+// rendering
+// ---------------------------------------------------------------------------
+
 function render(): void {
   const cols = process.stdout.columns || 80;
   const entries = state.entries;
-  const headers = ["PORT", "PROCESS", "WORKING DIR", "UPTIME"];
-  const cells = entries.map((e) => [
-    String(e.port),
-    e.process,
-    e.cwd,
-    formatUptime(e.uptimeSeconds),
-  ]);
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...cells.map((r) => r[i].length)),
-  );
+  const { headers, rows, widths } = buildTable(entries);
 
   const inner = Math.min(56, Math.max(1, cols - 4));
   const banner = accent("(˘(oo)˘)") + " " + bold(accent("PORK"));
@@ -70,21 +49,12 @@ function render(): void {
   if (entries.length === 0) {
     content.push(center(dim("no oinks yet."), inner));
   } else {
-    const headerLine = headers
-      .map((h, i) => pad(h, widths[i]))
-      .join("   ")
-      .trimEnd();
     const tableWidth = 2 + widths.reduce((sum, w) => sum + w, 0) + 3 * (widths.length - 1);
     const indent = " ".repeat(Math.max(0, Math.floor((inner - tableWidth) / 2)));
-    content.push(indent + "  " + dim(headerLine));
+    content.push(indent + "  " + dim(joinCells(headers, widths)));
     entries.forEach((_, i) => {
-      const cols_ = cells[i];
-      const rest = cols_
-        .slice(1)
-        .map((c, j) => pad(c, widths[j + 1]))
-        .join("   ")
-        .trimEnd();
-      const port = pad(cols_[0], widths[0]);
+      const rest = joinCells(rows[i].slice(1), widths.slice(1));
+      const port = pad(rows[i][0], widths[0]);
       if (i === state.selected) {
         content.push(indent + accent(`> ${port}   ${rest}`));
       } else {
@@ -104,6 +74,10 @@ function render(): void {
   out("\x1b[2J\x1b[H" + box(content, inner).join("\r\n"));
   state.status = null;
 }
+
+// ---------------------------------------------------------------------------
+// refresh / actions
+// ---------------------------------------------------------------------------
 
 function refresh(): void {
   const keepPort = state.entries[state.selected]?.port;
@@ -146,6 +120,10 @@ function killSelected(): void {
         : `permission denied on port ${result.port}`;
   refresh();
 }
+
+// ---------------------------------------------------------------------------
+// lifecycle
+// ---------------------------------------------------------------------------
 
 let done = false;
 function quit(): void {
