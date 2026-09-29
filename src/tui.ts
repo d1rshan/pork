@@ -47,7 +47,7 @@ function render(): void {
   const content: string[] = [center(banner, inner), ""];
 
   if (entries.length === 0) {
-    content.push(center(dim("no oinks yet."), inner));
+    content.push(center(dim("oink"), inner));
   } else {
     const tableWidth = 2 + widths.reduce((sum, w) => sum + w, 0) + 3 * (widths.length - 1);
     const indent = " ".repeat(Math.max(0, Math.floor((inner - tableWidth) / 2)));

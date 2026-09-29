@@ -1,15 +1,25 @@
 {
-  "name": "pork",
+  "name": "@d1rshan/pork",
   "version": "0.1.0",
   "description": "Find and kill dev-server ports",
   "type": "module",
-  "bin": { "pork": "./src/index.ts" },
+  "bin": {
+    "pork": "src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "start": "node src/index.ts",
     "check": "tsc --noEmit",
     "test": "node --test"
   },
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^24.0.0",
